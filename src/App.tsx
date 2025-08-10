@@ -11,9 +11,17 @@ import { Collections } from './pages/Collections'
 import { Customize } from './pages/Customize'
 import { OrderConfirmation } from './pages/OrderConfirmation'
 import { TrackOrder } from './pages/TrackOrder'
+import { GarmentDetail } from './pages/GarmentDetail'
+import { CollectionDetail } from './pages/CollectionDetail'
 import { AdminLogin } from './pages/admin/Login'
 import { AdminLayout } from './pages/admin/AdminLayout'
 import { AdminDashboard } from './pages/admin/Dashboard'
+import { AdminOrders } from './pages/admin/Orders'
+import { AdminCustomers } from './pages/admin/Customers'
+import { AdminProducts } from './pages/admin/Products'
+import { AdminFabrics } from './pages/admin/Fabrics'
+import { AdminAnalytics } from './pages/admin/Analytics'
+import { AdminSettings } from './pages/admin/Settings'
 import { ProtectedRoute } from './components/ProtectedRoute'
 
 function App() {
@@ -50,10 +58,24 @@ function App() {
               <Footer />
             </>
           } />
+          <Route path="/garment/:id" element={
+            <>
+              <Header />
+              <GarmentDetail />
+              <Footer />
+            </>
+          } />
           <Route path="/collections" element={
             <>
               <Header />
               <Collections />
+              <Footer />
+            </>
+          } />
+          <Route path="/collection/:id" element={
+            <>
+              <Header />
+              <CollectionDetail />
               <Footer />
             </>
           } />
@@ -87,12 +109,12 @@ function App() {
             </ProtectedRoute>
           }>
             <Route index element={<AdminDashboard />} />
-            <Route path="orders" element={<div>Orders Page</div>} />
-            <Route path="customers" element={<div>Customers Page</div>} />
-            <Route path="products" element={<div>Products Page</div>} />
-            <Route path="fabrics" element={<div>Fabrics Page</div>} />
-            <Route path="analytics" element={<div>Analytics Page</div>} />
-            <Route path="settings" element={<div>Settings Page</div>} />
+            <Route path="orders" element={<AdminOrders />} />
+            <Route path="customers" element={<AdminCustomers />} />
+            <Route path="products" element={<AdminProducts />} />
+            <Route path="fabrics" element={<AdminFabrics />} />
+            <Route path="analytics" element={<AdminAnalytics />} />
+            <Route path="settings" element={<AdminSettings />} />
           </Route>
 
         </Routes>

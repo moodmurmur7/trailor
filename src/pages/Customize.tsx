@@ -5,6 +5,7 @@ import { ArrowLeft, ArrowRight, Palette, Scissors, Ruler, CreditCard } from 'luc
 import { Button } from '../components/ui/Button'
 import { Card } from '../components/ui/Card'
 import { Input } from '../components/ui/Input'
+import { supabase } from '../lib/supabase'
 
 export function Customize() {
   const [searchParams] = useSearchParams()
@@ -126,6 +127,62 @@ export function Customize() {
         [key]: value
       }
     }))
+  }
+
+  const handlePlaceOrder = async () => {
+    try {
+      // Create customer first
+      const { data: customerData, error: customerError } = await supabase
+        .from('customers')
+        .insert({
+          name: orderData.customer.name,
+          phone: orderData.customer.phone,
+          email: orderData.customer.email,
+          measurements_json: orderData.measurements
+        })
+        .select()
+        .single()
+
+      if (customerError) throw customerError
+
+      // Generate tracking ID
+      const trackingId = 'RT' + Date.now().toString().slice(-6)
+
+      // Create order
+      const { data: orderDataResult, error: orderError } = await supabase
+        .from('orders')
+        .insert({
+          customer_id: customerData.id,
+          fabric_id: orderData.fabric?.id || '1',
+          garment_id: orderData.garment?.id || '1',
+          tracking_id: trackingId,
+          customizations_json: orderData.customizations,
+          measurements_json: orderData.measurements,
+          price: calculateTotalPrice(),
+          status: 'confirmed',
+          urgent: false,
+          special_instructions: orderData.customizations.special_instructions,
+          estimated_completion: new Date(Date.now() + 14 * 24 * 60 * 60 * 1000).toISOString().split('T')[0]
+        })
+        .select()
+        .single()
+
+      if (orderError) throw orderError
+
+      // Navigate to confirmation page
+      navigate(`/order-confirmation/${trackingId}`)
+    } catch (error) {
+      console.error('Error placing order:', error)
+      alert('Error placing order. Please try again.')
+    }
+  }
+
+  const calculateTotalPrice = () => {
+    let total = 0
+    if (orderData.garment) total += orderData.garment.base_price
+    if (orderData.fabric) total += orderData.fabric.price_per_meter * 2 // Assuming 2 meters
+    if (orderData.customizations.lining) total += 300
+    return total
   }
 
   const renderStep = () => {
@@ -446,10 +503,60 @@ function ContactDetailsStep({ orderData, updateCustomer }: any) {
 function ReviewPaymentStep({ orderData }: any) {
   const navigate = useNavigate()
   
-  const handlePlaceOrder = () => {
-    // Generate tracking ID and navigate to confirmation
-    const trackingId = 'RT' + Date.now().toString().slice(-6)
-    navigate(`/order-confirmation/${trackingId}`)
+  const handlePlaceOrder = async () => {
+    try {
+      // Create customer first
+      const { data: customerData, error: customerError } = await supabase
+        .from('customers')
+        .insert({
+          name: orderData.customer.name,
+          phone: orderData.customer.phone,
+          email: orderData.customer.email,
+          measurements_json: orderData.measurements
+        })
+        .select()
+        .single()
+
+      if (customerError) throw customerError
+
+      // Generate tracking ID
+      const trackingId = 'RT' + Date.now().toString().slice(-6)
+
+      // Create order
+      const { data: orderDataResult, error: orderError } = await supabase
+        .from('orders')
+        .insert({
+          customer_id: customerData.id,
+          fabric_id: orderData.fabric?.id || '1',
+          garment_id: orderData.garment?.id || '1',
+          tracking_id: trackingId,
+          customizations_json: orderData.customizations,
+          measurements_json: orderData.measurements,
+          price: calculateTotal(),
+          status: 'confirmed',
+          urgent: false,
+          special_instructions: orderData.customizations.special_instructions,
+          estimated_completion: new Date(Date.now() + 14 * 24 * 60 * 60 * 1000).toISOString().split('T')[0]
+        })
+        .select()
+        .single()
+
+      if (orderError) throw orderError
+
+      // Navigate to confirmation page
+      navigate(`/order-confirmation/${trackingId}`)
+    } catch (error) {
+      console.error('Error placing order:', error)
+      alert('Error placing order. Please try again.')
+    }
+  }
+  
+  const calculateTotal = () => {
+    let total = 0
+    if (orderData.garment) total += orderData.garment.base_price
+    if (orderData.fabric) total += orderData.fabric.price_per_meter * 2
+    if (orderData.customizations.lining) total += 300
+    return total
   }
 
   return (
@@ -459,20 +566,20 @@ function ReviewPaymentStep({ orderData }: any) {
         <div className="space-y-4">
           <div className="flex justify-between">
             <span>Base Price</span>
-            <span>₹1,500</span>
+            <span>₹{orderData.garment?.base_price || 1500}</span>
           </div>
           <div className="flex justify-between">
             <span>Fabric Cost (2 meters)</span>
-            <span>₹5,000</span>
+            <span>₹{orderData.fabric ? orderData.fabric.price_per_meter * 2 : 5000}</span>
           </div>
           <div className="flex justify-between">
             <span>Customizations</span>
-            <span>₹300</span>
+            <span>₹{orderData.customizations.lining ? 300 : 0}</span>
           </div>
           <div className="border-t pt-4">
             <div className="flex justify-between font-semibold text-lg">
               <span>Total</span>
-              <span className="text-[#C8A951]">₹6,800</span>
+              <span className="text-[#C8A951]">₹{calculateTotal().toLocaleString()}</span>
             </div>
           </div>
         </div>
