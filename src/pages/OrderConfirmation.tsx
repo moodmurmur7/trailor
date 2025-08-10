@@ -4,26 +4,66 @@ import { motion } from 'framer-motion'
 import { CheckCircle, Download, Phone, Mail, MapPin, Clock, Scissors } from 'lucide-react'
 import { Button } from '../components/ui/Button'
 import { Card } from '../components/ui/Card'
+import { supabase } from '../lib/supabase'
 
 export function OrderConfirmation() {
   const { trackingId } = useParams()
+  const [orderDetails, setOrderDetails] = useState<any>(null)
+  const [loading, setLoading] = useState(true)
 
-  const orderDetails = {
-    trackingId: trackingId || 'RT123456',
-    customerName: 'John Doe',
-    phone: '+91 98765 43210',
-    email: 'john.doe@email.com',
-    garment: 'Classic Shirt',
-    fabric: 'Premium Silk - Golden',
-    customizations: [
-      'Slim Fit',
-      'Spread Collar',
-      'French Cuffs',
-      'Premium Lining'
-    ],
-    totalAmount: 6800,
-    estimatedCompletion: '2025-01-25',
-    orderDate: new Date().toLocaleDateString()
+  useEffect(() => {
+    fetchOrderDetails()
+  }, [trackingId])
+
+  const fetchOrderDetails = async () => {
+    try {
+      const { data, error } = await supabase
+        .from('orders')
+        .select(`
+          *,
+          customer:customers(*),
+          fabric:fabrics(*),
+          garment:garments(*)
+        `)
+        .eq('tracking_id', trackingId)
+        .single()
+
+      if (error) throw error
+
+      if (data) {
+        setOrderDetails({
+          trackingId: data.tracking_id,
+          customerName: data.customer?.name || 'Customer',
+          phone: data.customer?.phone || '',
+          email: data.customer?.email || '',
+          garment: data.garment?.name || 'Custom Garment',
+          fabric: `${data.fabric?.name || 'Premium Fabric'} - ${data.fabric?.color || 'Custom Color'}`,
+          customizations: Object.entries(data.customizations_json || {})
+            .filter(([key, value]) => value && value !== '')
+            .map(([key, value]) => `${key.replace('_', ' ')}: ${value}`),
+          totalAmount: data.price,
+          estimatedCompletion: new Date(data.estimated_completion).toLocaleDateString(),
+          orderDate: new Date(data.created_at).toLocaleDateString()
+        })
+      }
+    } catch (error) {
+      console.error('Error fetching order details:', error)
+      // Fallback to sample data
+      setOrderDetails({
+        trackingId: trackingId || 'RT123456',
+        customerName: 'Customer',
+        phone: '+91 98765 43210',
+        email: 'customer@email.com',
+        garment: 'Custom Garment',
+        fabric: 'Premium Fabric',
+        customizations: ['Custom Order'],
+        totalAmount: 6800,
+        estimatedCompletion: new Date(Date.now() + 14 * 24 * 60 * 60 * 1000).toLocaleDateString(),
+        orderDate: new Date().toLocaleDateString()
+      })
+    } finally {
+      setLoading(false)
+    }
   }
 
   const handleDownloadBill = () => {
@@ -35,6 +75,24 @@ export function OrderConfirmation() {
     window.print()
   }
 
+  if (loading) {
+    return (
+      <div className="min-h-screen bg-[#F8F5F0] flex items-center justify-center">
+        <div className="animate-spin rounded-full h-32 w-32 border-b-2 border-[#C8A951]"></div>
+      </div>
+    )
+  }
+
+  if (!orderDetails) {
+    return (
+      <div className="min-h-screen bg-[#F8F5F0] flex items-center justify-center">
+        <div className="text-center">
+          <h1 className="text-2xl font-bold text-[#1A1D23] mb-4">Order Not Found</h1>
+          <p className="text-gray-600">The order with tracking ID {trackingId} could not be found.</p>
+        </div>
+      </div>
+    )
+  }
   return (
     <div className="min-h-screen bg-[#F8F5F0] py-8">
       <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8">

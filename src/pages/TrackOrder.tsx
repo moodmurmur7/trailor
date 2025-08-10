@@ -4,6 +4,7 @@ import { Search, CheckCircle, Clock, Package, Scissors, Sparkles, Shield, Gift }
 import { Button } from '../components/ui/Button'
 import { Input } from '../components/ui/Input'
 import { Card } from '../components/ui/Card'
+import { supabase } from '../lib/supabase'
 
 export function TrackOrder() {
   const [trackingId, setTrackingId] = useState('')
@@ -24,20 +25,44 @@ export function TrackOrder() {
     if (!trackingId.trim()) return
     
     setLoading(true)
-    // Simulate API call
-    setTimeout(() => {
-      setOrderStatus({
-        id: trackingId,
-        status: 'stitching',
-        customerName: 'John Doe',
-        garmentType: 'Wedding Sherwani',
-        fabric: 'Premium Silk - Golden',
-        orderDate: '2025-01-10',
-        estimatedCompletion: '2025-01-20',
-        currentStep: 3
-      })
+    
+    try {
+      const { data, error } = await supabase
+        .from('orders')
+        .select(`
+          *,
+          customer:customers(*),
+          fabric:fabrics(*),
+          garment:garments(*)
+        `)
+        .eq('tracking_id', trackingId.trim())
+        .single()
+
+      if (error) throw error
+
+      if (data) {
+        const statusIndex = statusSteps.findIndex(step => step.key === data.status)
+        setOrderStatus({
+          id: data.tracking_id,
+          status: data.status,
+          customerName: data.customer?.name || 'Customer',
+          garmentType: data.garment?.name || 'Custom Garment',
+          fabric: `${data.fabric?.name || 'Premium Fabric'} - ${data.fabric?.color || 'Custom Color'}`,
+          orderDate: new Date(data.created_at).toLocaleDateString(),
+          estimatedCompletion: new Date(data.estimated_completion).toLocaleDateString(),
+          currentStep: statusIndex >= 0 ? statusIndex : 0
+        })
+      } else {
+        setOrderStatus(null)
+        alert('Order not found. Please check your tracking ID.')
+      }
+    } catch (error) {
+      console.error('Error tracking order:', error)
+      setOrderStatus(null)
+      alert('Error tracking order. Please try again.')
+    } finally {
       setLoading(false)
-    }, 1000)
+    }
   }
 
   return (
