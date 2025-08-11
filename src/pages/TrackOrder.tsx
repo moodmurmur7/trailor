@@ -1,6 +1,6 @@
 import React, { useState } from 'react'
 import { motion } from 'framer-motion'
-import { Search, CheckCircle, Clock, Package, Scissors, Sparkles, Shield, Gift } from 'lucide-react'
+import { Search, CheckCircle, Clock, Package, Scissors, Sparkles, Shield, Gift, AlertCircle } from 'lucide-react'
 import { Button } from '../components/ui/Button'
 import { Input } from '../components/ui/Input'
 import { Card } from '../components/ui/Card'
@@ -10,6 +10,7 @@ export function TrackOrder() {
   const [trackingId, setTrackingId] = useState('')
   const [orderStatus, setOrderStatus] = useState<any>(null)
   const [loading, setLoading] = useState(false)
+  const [error, setError] = useState<string | null>(null)
 
   const statusSteps = [
     { key: 'confirmed', label: 'Order Confirmed', icon: CheckCircle },
@@ -22,9 +23,13 @@ export function TrackOrder() {
   ]
 
   const handleTrackOrder = async () => {
-    if (!trackingId.trim()) return
+    if (!trackingId.trim()) {
+      setError('Please enter a tracking ID')
+      return
+    }
     
     setLoading(true)
+    setError(null)
     
     try {
       const { data, error } = await supabase
@@ -50,16 +55,16 @@ export function TrackOrder() {
           fabric: `${data.fabric?.name || 'Premium Fabric'} - ${data.fabric?.color || 'Custom Color'}`,
           orderDate: new Date(data.created_at).toLocaleDateString(),
           estimatedCompletion: new Date(data.estimated_completion).toLocaleDateString(),
-          currentStep: statusIndex >= 0 ? statusIndex : 0
+          currentStep: statusIndex >= 0 ? statusIndex : 0,
+          price: data.price,
+          urgent: data.urgent,
+          specialInstructions: data.special_instructions
         })
-      } else {
-        setOrderStatus(null)
-        alert('Order not found. Please check your tracking ID.')
       }
-    } catch (error) {
+    } catch (error: any) {
       console.error('Error tracking order:', error)
+      setError('Order not found. Please check your tracking ID.')
       setOrderStatus(null)
-      alert('Error tracking order. Please try again.')
     } finally {
       setLoading(false)
     }
@@ -85,12 +90,19 @@ export function TrackOrder() {
               value={trackingId}
               onChange={(e) => setTrackingId(e.target.value)}
               className="flex-1"
+              onKeyPress={(e) => e.key === 'Enter' && handleTrackOrder()}
             />
             <Button onClick={handleTrackOrder} disabled={loading}>
               <Search className="w-4 h-4 mr-2" />
               {loading ? 'Tracking...' : 'Track'}
             </Button>
           </div>
+          {error && (
+            <div className="mt-4 flex items-center justify-center space-x-2 text-red-600">
+              <AlertCircle className="w-4 h-4" />
+              <span className="text-sm">{error}</span>
+            </div>
+          )}
         </Card>
 
         {orderStatus && (
@@ -122,6 +134,10 @@ export function TrackOrder() {
                       <span className="text-gray-600">Order Date:</span>
                       <span className="ml-2 font-medium">{orderStatus.orderDate}</span>
                     </div>
+                    <div>
+                      <span className="text-gray-600">Amount:</span>
+                      <span className="ml-2 font-medium text-[#C8A951]">₹{orderStatus.price.toLocaleString()}</span>
+                    </div>
                   </div>
                 </div>
                 <div>
@@ -139,6 +155,11 @@ export function TrackOrder() {
                       <span className="text-green-800 font-medium">
                         Status: {statusSteps[orderStatus.currentStep]?.label}
                       </span>
+                      {orderStatus.urgent && (
+                        <span className="ml-2 bg-red-100 text-red-800 px-2 py-1 rounded-full text-xs font-medium">
+                          URGENT
+                        </span>
+                      )}
                     </div>
                   </div>
                 </div>
@@ -189,6 +210,14 @@ export function TrackOrder() {
               </div>
             </Card>
 
+            {/* Special Instructions */}
+            {orderStatus.specialInstructions && (
+              <Card className="p-6">
+                <h3 className="text-lg font-semibold text-[#1A1D23] mb-3">Special Instructions</h3>
+                <p className="text-gray-700 bg-gray-50 p-3 rounded">{orderStatus.specialInstructions}</p>
+              </Card>
+            )}
+
             {/* Next Steps */}
             <Card className="p-6 bg-[#C8A951] bg-opacity-10 border-[#C8A951] border-opacity-20">
               <div className="text-center">
@@ -208,7 +237,7 @@ export function TrackOrder() {
           </motion.div>
         )}
 
-        {!orderStatus && (
+        {!orderStatus && !loading && (
           <Card className="p-8 text-center">
             <div className="text-gray-400 mb-4">
               <Package className="w-16 h-16 mx-auto" />

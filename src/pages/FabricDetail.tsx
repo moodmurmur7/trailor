@@ -1,61 +1,70 @@
 import React, { useState, useEffect } from 'react'
 import { useParams, Link } from 'react-router-dom'
 import { motion } from 'framer-motion'
-import { ArrowLeft, ShoppingBag, ZoomIn as Zoom, Star, Clock, Truck } from 'lucide-react'
+import { ArrowLeft, ShoppingBag, ZoomIn as Zoom, Star, Clock, Truck, AlertCircle } from 'lucide-react'
 import { Button } from '../components/ui/Button'
 import { Card } from '../components/ui/Card'
+import { supabase } from '../lib/supabase'
 import { Fabric } from '../types'
 
 export function FabricDetail() {
   const { id } = useParams()
   const [fabric, setFabric] = useState<Fabric | null>(null)
+  const [loading, setLoading] = useState(true)
+  const [error, setError] = useState<string | null>(null)
   const [selectedImage, setSelectedImage] = useState(0)
   const [isZoomed, setIsZoomed] = useState(false)
 
   useEffect(() => {
-    // Sample fabric data - in real app, fetch from Supabase
-    const sampleFabrics = [
-      {
-        id: '1',
-        name: 'Premium Silk',
-        material: 'Silk',
-        price_per_meter: 2500,
-        color: 'Golden',
-        stock: 50,
-        images_json: [
-          'https://images.pexels.com/photos/6069107/pexels-photo-6069107.jpeg',
-          'https://images.pexels.com/photos/8849295/pexels-photo-8849295.jpeg',
-          'https://images.pexels.com/photos/6069108/pexels-photo-6069108.jpeg'
-        ],
-        featured: true,
-        description: 'Luxurious silk fabric perfect for wedding wear and special occasions. This premium quality silk features a beautiful golden sheen and smooth texture that drapes elegantly.',
-        created_at: new Date().toISOString()
-      },
-      {
-        id: '2',
-        name: 'Italian Wool',
-        material: 'Wool',
-        price_per_meter: 3200,
-        color: 'Navy Blue',
-        stock: 30,
-        images_json: [
-          'https://images.pexels.com/photos/7679720/pexels-photo-7679720.jpeg',
-          'https://images.pexels.com/photos/7679717/pexels-photo-7679717.jpeg'
-        ],
-        featured: true,
-        description: 'Premium Italian wool for sophisticated suits and formal wear. Sourced from the finest mills in Italy, this wool offers exceptional durability and comfort.',
-        created_at: new Date().toISOString()
-      }
-    ]
-
-    const foundFabric = sampleFabrics.find(f => f.id === id)
-    setFabric(foundFabric || sampleFabrics[0])
+    if (id) {
+      fetchFabric()
+    }
   }, [id])
 
-  if (!fabric) {
+  const fetchFabric = async () => {
+    try {
+      setLoading(true)
+      setError(null)
+      
+      const { data, error } = await supabase
+        .from('fabrics')
+        .select('*')
+        .eq('id', id)
+        .single()
+
+      if (error) throw error
+      
+      setFabric(data)
+    } catch (error: any) {
+      console.error('Error fetching fabric:', error)
+      setError('Fabric not found or failed to load.')
+    } finally {
+      setLoading(false)
+    }
+  }
+
+  if (loading) {
     return (
       <div className="min-h-screen bg-[#F8F5F0] flex items-center justify-center">
-        <div className="animate-spin rounded-full h-32 w-32 border-b-2 border-[#C8A951]"></div>
+        <div className="text-center">
+          <div className="animate-spin rounded-full h-32 w-32 border-b-2 border-[#C8A951] mx-auto mb-4"></div>
+          <p className="text-gray-600">Loading fabric details...</p>
+        </div>
+      </div>
+    )
+  }
+
+  if (error || !fabric) {
+    return (
+      <div className="min-h-screen bg-[#F8F5F0] flex items-center justify-center">
+        <Card className="p-8 text-center max-w-md">
+          <AlertCircle className="w-16 h-16 text-red-500 mx-auto mb-4" />
+          <h2 className="text-xl font-semibold text-gray-800 mb-2">Fabric Not Found</h2>
+          <p className="text-gray-600 mb-4">{error}</p>
+          <Link to="/fabrics">
+            <Button>Back to Fabrics</Button>
+          </Link>
+        </Card>
       </div>
     )
   }
@@ -67,6 +76,10 @@ export function FabricDetail() {
     { name: 'Premium Lining', price: 300 },
     { name: 'Home Measurement', price: 200 }
   ]
+
+  const images = fabric.images_json && fabric.images_json.length > 0 
+    ? fabric.images_json 
+    : ['https://images.pexels.com/photos/6069107/pexels-photo-6069107.jpeg']
 
   return (
     <div className="min-h-screen bg-[#F8F5F0] py-8">
@@ -83,12 +96,15 @@ export function FabricDetail() {
             <Card className="overflow-hidden">
               <div className="relative">
                 <img
-                  src={fabric.images_json[selectedImage]}
+                  src={images[selectedImage]}
                   alt={fabric.name}
                   className={`w-full h-96 object-cover cursor-zoom-in transition-transform duration-300 ${
                     isZoomed ? 'scale-150' : 'scale-100'
                   }`}
                   onClick={() => setIsZoomed(!isZoomed)}
+                  onError={(e) => {
+                    (e.target as HTMLImageElement).src = 'https://images.pexels.com/photos/6069107/pexels-photo-6069107.jpeg'
+                  }}
                 />
                 <button
                   onClick={() => setIsZoomed(!isZoomed)}
@@ -100,9 +116,9 @@ export function FabricDetail() {
             </Card>
             
             {/* Thumbnail Images */}
-            {fabric.images_json.length > 1 && (
+            {images.length > 1 && (
               <div className="flex space-x-2">
-                {fabric.images_json.map((image, index) => (
+                {images.map((image, index) => (
                   <button
                     key={index}
                     onClick={() => setSelectedImage(index)}
@@ -114,6 +130,9 @@ export function FabricDetail() {
                       src={image}
                       alt={`${fabric.name} ${index + 1}`}
                       className="w-full h-full object-cover"
+                      onError={(e) => {
+                        (e.target as HTMLImageElement).src = 'https://images.pexels.com/photos/6069107/pexels-photo-6069107.jpeg'
+                      }}
                     />
                   </button>
                 ))}
@@ -190,9 +209,9 @@ export function FabricDetail() {
             {/* Action Buttons */}
             <div className="space-y-3">
               <Link to={`/customize?fabric=${fabric.id}`} className="block">
-                <Button size="lg" className="w-full">
+                <Button size="lg" className="w-full" disabled={fabric.stock === 0}>
                   <ShoppingBag className="w-5 h-5 mr-2" />
-                  Start Custom Order
+                  {fabric.stock === 0 ? 'Out of Stock' : 'Start Custom Order'}
                 </Button>
               </Link>
               <Link to="/garments" className="block">
@@ -201,35 +220,6 @@ export function FabricDetail() {
                 </Button>
               </Link>
             </div>
-
-            {/* Customer Reviews */}
-            <Card className="p-6">
-              <h3 className="text-lg font-semibold text-[#1A1D23] mb-4">Customer Reviews</h3>
-              <div className="space-y-4">
-                <div className="border-b border-gray-100 pb-4">
-                  <div className="flex items-center space-x-2 mb-2">
-                    <div className="flex">
-                      {[...Array(5)].map((_, i) => (
-                        <Star key={i} className="w-4 h-4 text-[#C8A951] fill-current" />
-                      ))}
-                    </div>
-                    <span className="text-sm font-medium text-[#1A1D23]">Rajesh Kumar</span>
-                  </div>
-                  <p className="text-sm text-gray-700">"Excellent quality fabric. The silk has a beautiful sheen and the tailoring was perfect."</p>
-                </div>
-                <div>
-                  <div className="flex items-center space-x-2 mb-2">
-                    <div className="flex">
-                      {[...Array(5)].map((_, i) => (
-                        <Star key={i} className="w-4 h-4 text-[#C8A951] fill-current" />
-                      ))}
-                    </div>
-                    <span className="text-sm font-medium text-[#1A1D23]">Priya Sharma</span>
-                  </div>
-                  <p className="text-sm text-gray-700">"Used this for my wedding blouse. The quality exceeded my expectations!"</p>
-                </div>
-              </div>
-            </Card>
           </div>
         </div>
       </div>

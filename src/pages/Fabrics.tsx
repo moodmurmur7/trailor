@@ -1,126 +1,24 @@
 import React, { useState, useEffect } from 'react'
 import { motion } from 'framer-motion'
-import { Search, Filter, Eye, ShoppingBag } from 'lucide-react'
+import { Search, Eye, ShoppingBag, AlertCircle, RefreshCw } from 'lucide-react'
 import { Link } from 'react-router-dom'
 import { Button } from '../components/ui/Button'
 import { Input } from '../components/ui/Input'
 import { Card } from '../components/ui/Card'
-import { supabase } from '../lib/supabase'
-import { Fabric } from '../types'
+import { useFabrics } from '../hooks/useRealTimeData'
+import { Fabric } from '../lib/supabase'
 
 export function Fabrics() {
-  const [fabrics, setFabrics] = useState<Fabric[]>([])
+  const { fabrics, loading, error, refetch } = useFabrics()
   const [filteredFabrics, setFilteredFabrics] = useState<Fabric[]>([])
-  const [loading, setLoading] = useState(true)
   const [searchTerm, setSearchTerm] = useState('')
   const [selectedMaterial, setSelectedMaterial] = useState('all')
   const [selectedColor, setSelectedColor] = useState('all')
   const [priceRange, setPriceRange] = useState('all')
 
   useEffect(() => {
-    fetchFabrics()
-  }, [])
-
-  useEffect(() => {
     filterFabrics()
   }, [fabrics, searchTerm, selectedMaterial, selectedColor, priceRange])
-
-  const fetchFabrics = async () => {
-    try {
-      const { data, error } = await supabase
-        .from('fabrics')
-        .select('*')
-        .order('featured', { ascending: false })
-        .order('created_at', { ascending: false })
-
-      if (error) throw error
-      
-      // Add sample data if no fabrics exist
-      if (!data || data.length === 0) {
-        const sampleFabrics = [
-          {
-            id: '1',
-            name: 'Premium Silk',
-            material: 'Silk',
-            price_per_meter: 2500,
-            color: 'Golden',
-            stock: 50,
-            images_json: ['https://images.pexels.com/photos/6069107/pexels-photo-6069107.jpeg'],
-            featured: true,
-            description: 'Luxurious silk fabric perfect for wedding wear and special occasions',
-            created_at: new Date().toISOString()
-          },
-          {
-            id: '2',
-            name: 'Italian Wool',
-            material: 'Wool',
-            price_per_meter: 3200,
-            color: 'Navy Blue',
-            stock: 30,
-            images_json: ['https://images.pexels.com/photos/7679720/pexels-photo-7679720.jpeg'],
-            featured: true,
-            description: 'Premium Italian wool for sophisticated suits and formal wear',
-            created_at: new Date().toISOString()
-          },
-          {
-            id: '3',
-            name: 'Egyptian Cotton',
-            material: 'Cotton',
-            price_per_meter: 1800,
-            color: 'White',
-            stock: 75,
-            images_json: ['https://images.pexels.com/photos/6069102/pexels-photo-6069102.jpeg'],
-            featured: false,
-            description: 'Finest Egyptian cotton for comfortable everyday wear',
-            created_at: new Date().toISOString()
-          },
-          {
-            id: '4',
-            name: 'Banarasi Silk',
-            material: 'Silk',
-            price_per_meter: 4500,
-            color: 'Red',
-            stock: 20,
-            images_json: ['https://images.pexels.com/photos/8849295/pexels-photo-8849295.jpeg'],
-            featured: true,
-            description: 'Traditional Banarasi silk with intricate gold work',
-            created_at: new Date().toISOString()
-          },
-          {
-            id: '5',
-            name: 'Linen Blend',
-            material: 'Linen',
-            price_per_meter: 2200,
-            color: 'Beige',
-            stock: 40,
-            images_json: ['https://images.pexels.com/photos/7679717/pexels-photo-7679717.jpeg'],
-            featured: false,
-            description: 'Breathable linen blend perfect for summer wear',
-            created_at: new Date().toISOString()
-          },
-          {
-            id: '6',
-            name: 'Velvet Royal',
-            material: 'Velvet',
-            price_per_meter: 3800,
-            color: 'Maroon',
-            stock: 15,
-            images_json: ['https://images.pexels.com/photos/6069108/pexels-photo-6069108.jpeg'],
-            featured: false,
-            description: 'Rich velvet fabric for luxury garments and evening wear',
-            created_at: new Date().toISOString()
-          }
-        ]
-        setFabrics(sampleFabrics)
-      } else {
-        setFabrics(data)
-      }
-    } catch (error) {
-      console.error('Error fetching fabrics:', error)
-    } finally {
-      setLoading(false)
-    }
-  }
 
   const filterFabrics = () => {
     let filtered = fabrics
@@ -158,10 +56,18 @@ export function Fabrics() {
   const materials = [...new Set(fabrics.map(f => f.material))]
   const colors = [...new Set(fabrics.map(f => f.color))]
 
-  if (loading) {
+  if (error) {
     return (
       <div className="min-h-screen bg-[#F8F5F0] flex items-center justify-center">
-        <div className="animate-spin rounded-full h-32 w-32 border-b-2 border-[#C8A951]"></div>
+        <Card className="p-8 text-center max-w-md">
+          <AlertCircle className="w-16 h-16 text-red-500 mx-auto mb-4" />
+          <h2 className="text-xl font-semibold text-gray-800 mb-2">Error Loading Fabrics</h2>
+          <p className="text-gray-600 mb-4">{error}</p>
+          <Button onClick={refetch}>
+            <RefreshCw className="w-4 h-4 mr-2" />
+            Try Again
+          </Button>
+        </Card>
       </div>
     )
   }
@@ -226,76 +132,106 @@ export function Fabrics() {
           </div>
         </Card>
 
-        {/* Fabric Grid */}
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
-          {filteredFabrics.map((fabric, index) => (
-            <motion.div
-              key={fabric.id}
-              initial={{ opacity: 0, y: 20 }}
-              animate={{ opacity: 1, y: 0 }}
-              transition={{ delay: index * 0.1, duration: 0.6 }}
-            >
-              <Card hover className="overflow-hidden group">
-                <div className="relative">
-                  <img
-                    src={fabric.images_json[0]}
-                    alt={fabric.name}
-                    className="w-full h-64 object-cover group-hover:scale-105 transition-transform duration-300"
-                  />
-                  {fabric.featured && (
-                    <div className="absolute top-4 left-4 bg-[#C8A951] text-white px-3 py-1 rounded-full text-sm font-medium">
-                      Featured
-                    </div>
-                  )}
-                  <div className="absolute top-4 right-4 bg-white bg-opacity-90 px-2 py-1 rounded-full text-sm font-medium">
-                    {fabric.stock} meters
-                  </div>
-                </div>
-                <div className="p-6">
-                  <div className="flex items-center justify-between mb-2">
-                    <h3 className="text-xl font-semibold text-[#1A1D23]">{fabric.name}</h3>
-                    <span className="text-[#C8A951] font-bold">₹{fabric.price_per_meter}/m</span>
-                  </div>
-                  <div className="flex items-center space-x-4 mb-3">
-                    <span className="text-sm text-gray-600">{fabric.material}</span>
-                    <span className="text-sm text-gray-600">•</span>
-                    <span className="text-sm text-gray-600">{fabric.color}</span>
-                  </div>
-                  <p className="text-gray-600 text-sm mb-4 line-clamp-2">{fabric.description}</p>
-                  <div className="flex space-x-2">
-                    <Link to={`/fabric/${fabric.id}`} className="flex-1">
-                      <Button variant="outline" className="w-full">
-                        <Eye className="w-4 h-4 mr-2" />
-                        View Details
-                      </Button>
-                    </Link>
-                    <Link to={`/customize?fabric=${fabric.id}`}>
-                      <Button>
-                        <ShoppingBag className="w-4 h-4 mr-2" />
-                        Select
-                      </Button>
-                    </Link>
-                  </div>
-                </div>
-              </Card>
-            </motion.div>
-          ))}
-        </div>
-
-        {filteredFabrics.length === 0 && (
+        {/* Loading State */}
+        {loading && (
           <div className="text-center py-12">
-            <p className="text-gray-600 text-lg">No fabrics found matching your criteria.</p>
-            <Button
-              onClick={() => {
-                setSearchTerm('')
-                setSelectedMaterial('all')
-                setSelectedColor('all')
-                setPriceRange('all')
-              }}
-              className="mt-4"
-            >
-              Clear Filters
-            </Button>
+            <div className="animate-spin rounded-full h-32 w-32 border-b-2 border-[#C8A951] mx-auto mb-4"></div>
+            <p className="text-gray-600">Loading fabrics...</p>
+          </div>
+        )}
+
+        {/* Fabric Grid */}
+        {!loading && filteredFabrics.length > 0 && (
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
+            {filteredFabrics.map((fabric, index) => (
+              <motion.div
+                key={fabric.id}
+                initial={{ opacity: 0, y: 20 }}
+                animate={{ opacity: 1, y: 0 }}
+                transition={{ delay: index * 0.1, duration: 0.6 }}
+              >
+                <Card hover className="overflow-hidden group">
+                  <div className="relative">
+                    <img
+                      src={fabric.images?.[0] || 'https://images.pexels.com/photos/6069107/pexels-photo-6069107.jpeg'}
+                      alt={fabric.name}
+                      className="w-full h-64 object-cover group-hover:scale-105 transition-transform duration-300"
+                      onError={(e) => {
+                        (e.target as HTMLImageElement).src = 'https://images.pexels.com/photos/6069107/pexels-photo-6069107.jpeg'
+                      }}
+                    />
+                    {fabric.featured && (
+                      <div className="absolute top-4 left-4 bg-[#C8A951] text-white px-3 py-1 rounded-full text-sm font-medium">
+                        Featured
+                      </div>
+                    )}
+                    <div className="absolute top-4 right-4 bg-white bg-opacity-90 px-2 py-1 rounded-full text-sm font-medium">
+                      {fabric.stock_meters}m in stock
+                    </div>
+                    {fabric.stock_meters <= fabric.minimum_stock && (
+                      <div className="absolute bottom-4 left-4 bg-red-500 text-white px-2 py-1 rounded-full text-xs font-medium">
+                        Low Stock
+                      </div>
+                    )}
+                  </div>
+                  <div className="p-6">
+                    <div className="flex items-center justify-between mb-2">
+                      <h3 className="text-xl font-semibold text-[#1A1D23]">{fabric.name}</h3>
+                      <span className="text-[#C8A951] font-bold">₹{fabric.price_per_meter}/m</span>
+                    </div>
+                    <div className="flex items-center space-x-4 mb-3">
+                      <span className="text-sm text-gray-600">{fabric.material}</span>
+                      <span className="text-sm text-gray-600">•</span>
+                      <span className="text-sm text-gray-600">{fabric.color}</span>
+                      {fabric.pattern && (
+                        <>
+                          <span className="text-sm text-gray-600">•</span>
+                          <span className="text-sm text-gray-600">{fabric.pattern}</span>
+                        </>
+                      )}
+                    </div>
+                    {fabric.description && (
+                      <p className="text-gray-600 text-sm mb-4 line-clamp-2">{fabric.description}</p>
+                    )}
+                    <div className="flex space-x-2">
+                      <Link to={`/fabric/${fabric.id}`} className="flex-1">
+                        <Button variant="outline" className="w-full">
+                          <Eye className="w-4 h-4 mr-2" />
+                          View Details
+                        </Button>
+                      </Link>
+                      <Link to={`/customize?fabric=${fabric.id}`}>
+                        <Button disabled={fabric.stock_meters <= 0}>
+                          <ShoppingBag className="w-4 h-4 mr-2" />
+                          {fabric.stock_meters <= 0 ? 'Out of Stock' : 'Select'}
+                        </Button>
+                      </Link>
+                    </div>
+                  </div>
+                </Card>
+              </motion.div>
+            ))}
+          </div>
+        )}
+
+        {/* Empty State */}
+        {!loading && filteredFabrics.length === 0 && (
+          <div className="text-center py-12">
+            <p className="text-gray-600 text-lg mb-4">
+              {fabrics.length === 0 ? 'No fabrics available at the moment.' : 'No fabrics found matching your criteria.'}
+            </p>
+            {fabrics.length > 0 && (
+              <Button
+                onClick={() => {
+                  setSearchTerm('')
+                  setSelectedMaterial('all')
+                  setSelectedColor('all')
+                  setPriceRange('all')
+                }}
+              >
+                Clear Filters
+              </Button>
+            )}
           </div>
         )}
       </div>
