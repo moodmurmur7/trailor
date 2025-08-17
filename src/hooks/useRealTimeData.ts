@@ -6,6 +6,8 @@ import {
   garmentAPI,
   subscribeToOrders,
   subscribeToCustomers,
+  subscribeToFabrics,
+  subscribeToGarments,
   Order,
   Customer,
   Fabric,
@@ -97,6 +99,12 @@ export function useFabrics() {
 
   useEffect(() => {
     fetchFabrics()
+    
+    const subscription = subscribeToFabrics(fetchFabrics)
+    
+    return () => {
+      subscription.unsubscribe()
+    }
   }, [])
 
   return { fabrics, loading, error, refetch: fetchFabrics }
@@ -123,6 +131,12 @@ export function useGarments() {
 
   useEffect(() => {
     fetchGarments()
+    
+    const subscription = subscribeToGarments(fetchGarments)
+    
+    return () => {
+      subscription.unsubscribe()
+    }
   }, [])
 
   return { garments, loading, error, refetch: fetchGarments }

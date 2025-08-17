@@ -110,6 +110,15 @@ export const customerAPI = {
     
     if (error) throw error
     return customer
+  },
+
+  async delete(id: string) {
+    const { error } = await supabase
+      .from('customers')
+      .delete()
+      .eq('id', id)
+    
+    if (error) throw error
   }
 }
 
@@ -134,6 +143,38 @@ export const fabricAPI = {
     
     if (error) throw error
     return data
+  },
+
+  async create(data: Partial<Fabric>) {
+    const { data: fabric, error } = await supabase
+      .from('fabrics')
+      .insert(data)
+      .select()
+      .single()
+    
+    if (error) throw error
+    return fabric
+  },
+
+  async update(id: string, data: Partial<Fabric>) {
+    const { data: fabric, error } = await supabase
+      .from('fabrics')
+      .update(data)
+      .eq('id', id)
+      .select()
+      .single()
+    
+    if (error) throw error
+    return fabric
+  },
+
+  async delete(id: string) {
+    const { error } = await supabase
+      .from('fabrics')
+      .delete()
+      .eq('id', id)
+    
+    if (error) throw error
   },
 
   async updateStock(id: string, newStock: number) {
@@ -166,6 +207,38 @@ export const garmentAPI = {
     
     if (error) throw error
     return data
+  },
+
+  async create(data: Partial<Garment>) {
+    const { data: garment, error } = await supabase
+      .from('garments')
+      .insert(data)
+      .select()
+      .single()
+    
+    if (error) throw error
+    return garment
+  },
+
+  async update(id: string, data: Partial<Garment>) {
+    const { data: garment, error } = await supabase
+      .from('garments')
+      .update(data)
+      .eq('id', id)
+      .select()
+      .single()
+    
+    if (error) throw error
+    return garment
+  },
+
+  async delete(id: string) {
+    const { error } = await supabase
+      .from('garments')
+      .delete()
+      .eq('id', id)
+    
+    if (error) throw error
   }
 }
 
@@ -274,6 +347,27 @@ export const orderAPI = {
     
     if (error) throw error
     return data
+  },
+
+  async update(id: string, data: Partial<Order>) {
+    const { data: order, error } = await supabase
+      .from('orders')
+      .update(data)
+      .eq('id', id)
+      .select()
+      .single()
+    
+    if (error) throw error
+    return order
+  },
+
+  async delete(id: string) {
+    const { error } = await supabase
+      .from('orders')
+      .delete()
+      .eq('id', id)
+    
+    if (error) throw error
   }
 }
 
@@ -289,6 +383,20 @@ export const subscribeToCustomers = (callback: () => void) => {
   return supabase
     .channel('customers_changes')
     .on('postgres_changes', { event: '*', schema: 'public', table: 'customers' }, callback)
+    .subscribe()
+}
+
+export const subscribeToFabrics = (callback: () => void) => {
+  return supabase
+    .channel('fabrics_changes')
+    .on('postgres_changes', { event: '*', schema: 'public', table: 'fabrics' }, callback)
+    .subscribe()
+}
+
+export const subscribeToGarments = (callback: () => void) => {
+  return supabase
+    .channel('garments_changes')
+    .on('postgres_changes', { event: '*', schema: 'public', table: 'garments' }, callback)
     .subscribe()
 }
 

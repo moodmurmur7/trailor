@@ -1,82 +1,40 @@
 import React, { useState, useEffect } from 'react'
 import { motion } from 'framer-motion'
-import { Search, Plus, Edit, Eye, Package } from 'lucide-react'
+import { Search, Plus, Edit, Eye, Package, Trash2, Save, X } from 'lucide-react'
 import { Button } from '../../components/ui/Button'
 import { Input } from '../../components/ui/Input'
 import { Card } from '../../components/ui/Card'
-import { Garment } from '../../types'
+import { Modal } from '../../components/ui/Modal'
+import { useGarments } from '../../hooks/useRealTimeData'
+import { garmentAPI, Garment } from '../../lib/supabase'
 
 export function AdminProducts() {
-  const [garments, setGarments] = useState<Garment[]>([])
+  const { garments, loading, error, refetch } = useGarments()
   const [filteredGarments, setFilteredGarments] = useState<Garment[]>([])
-  const [loading, setLoading] = useState(true)
   const [searchTerm, setSearchTerm] = useState('')
   const [categoryFilter, setCategoryFilter] = useState('all')
+  const [isModalOpen, setIsModalOpen] = useState(false)
+  const [editingGarment, setEditingGarment] = useState<Garment | null>(null)
+  const [isCreating, setIsCreating] = useState(false)
+  const [saving, setSaving] = useState(false)
+  const [deleting, setDeleting] = useState<string | null>(null)
 
-  useEffect(() => {
-    fetchGarments()
-  }, [])
+  const [formData, setFormData] = useState({
+    name: '',
+    category: '',
+    base_price: 0,
+    description: '',
+    image_url: '',
+    customization_options: {
+      collar: ['Regular', 'Button Down', 'Spread'],
+      sleeves: ['Full Sleeve', 'Half Sleeve'],
+      fit: ['Regular', 'Slim', 'Relaxed']
+    }
+  })
 
   useEffect(() => {
     filterGarments()
   }, [garments, searchTerm, categoryFilter])
-
-  const fetchGarments = async () => {
-    try {
-      // Sample garment data
-      const sampleGarments = [
-        {
-          id: '1',
-          name: 'Classic Shirt',
-          category: 'Shirts',
-          base_price: 1500,
-          description: 'Timeless classic shirt perfect for office and casual wear',
-          image_url: 'https://images.pexels.com/photos/996329/pexels-photo-996329.jpeg',
-          customization_options: {
-            collar: ['Regular', 'Button Down', 'Spread', 'Cutaway'],
-            sleeves: ['Full Sleeve', 'Half Sleeve', 'Quarter Sleeve'],
-            fit: ['Regular', 'Slim', 'Relaxed']
-          },
-          created_at: new Date().toISOString(),
-          updated_at: new Date().toISOString()
-        },
-        {
-          id: '2',
-          name: 'Business Suit',
-          category: 'Suits',
-          base_price: 8500,
-          description: 'Professional business suit for formal occasions',
-          image_url: 'https://images.pexels.com/photos/1043474/pexels-photo-1043474.jpeg',
-          customization_options: {
-            jacket: ['Single Breasted', 'Double Breasted'],
-            lapels: ['Notch', 'Peak', 'Shawl']
-          },
-          created_at: new Date().toISOString(),
-          updated_at: new Date().toISOString()
-        },
-        {
-          id: '3',
-          name: 'Wedding Sherwani',
-          category: 'Sherwanis',
-          base_price: 12000,
-          description: 'Elegant sherwani for weddings and special occasions',
-          image_url: 'https://images.pexels.com/photos/1043473/pexels-photo-1043473.jpeg',
-          customization_options: {
-            collar: ['Band', 'High Neck', 'Nehru'],
-            embroidery: ['None', 'Light', 'Heavy']
-          },
-          created_at: new Date().toISOString(),
-          updated_at: new Date().toISOString()
-        }
-      ]
-      
-      setGarments(sampleGarments)
-    } catch (error) {
-      console.error('Error fetching garments:', error)
-    } finally {
-      setLoading(false)
-    }
-  }
 
   const filterGarments = () => {
     let filtered = garments
@@ -97,10 +55,107 @@ export function AdminProducts() {
 
   const categories = [...new Set(garments.map(g => g.category))]
 
+  const openCreateModal = () => {
+    setFormData({
+      name: '',
+      category: '',
+      base_price: 0,
+      description: '',
+      image_url: '',
+      customization_options: {
+        collar: ['Regular', 'Button Down', 'Spread'],
+        sleeves: ['Full Sleeve', 'Half Sleeve'],
+        fit: ['Regular', 'Slim', 'Relaxed']
+      }
+    })
+    setEditingGarment(null)
+    setIsCreating(true)
+    setIsModalOpen(true)
+  }
+
+  const openEditModal = (garment: Garment) => {
+    setFormData({
+      name: garment.name,
+      category: garment.category,
+      base_price: garment.base_price,
+      description: garment.description || '',
+      image_url: garment.image_url || '',
+      customization_options: garment.customization_options || {
+        collar: ['Regular', 'Button Down', 'Spread'],
+        sleeves: ['Full Sleeve', 'Half Sleeve'],
+        fit: ['Regular', 'Slim', 'Relaxed']
+      }
+    })
+    setEditingGarment(garment)
+    setIsCreating(false)
+    setIsModalOpen(true)
+  }
+
+  const handleSave = async () => {
+    try {
+      setSaving(true)
+
+      if (isCreating) {
+        await garmentAPI.create(formData)
+      } else if (editingGarment) {
+        await garmentAPI.update(editingGarment.id, formData)
+      }
+
+      setIsModalOpen(false)
+      refetch()
+    } catch (error) {
+      console.error('Error saving garment:', error)
+      alert('Failed to save garment. Please try again.')
+    } finally {
+      setSaving(false)
+    }
+  }
+
+  const handleDelete = async (garmentId: string) => {
+    if (!confirm('Are you sure you want to delete this garment?')) return
+
+    try {
+      setDeleting(garmentId)
+      await garmentAPI.delete(garmentId)
+      refetch()
+    } catch (error) {
+      console.error('Error deleting garment:', error)
+      alert('Failed to delete garment. Please try again.')
+    } finally {
+      setDeleting(null)
+    }
+  }
+
+  const updateFormData = (key: string, value: any) => {
+    setFormData(prev => ({ ...prev, [key]: value }))
+  }
+
+  const updateCustomizationOption = (optionKey: string, values: string[]) => {
+    setFormData(prev => ({
+      ...prev,
+      customization_options: {
+        ...prev.customization_options,
+        [optionKey]: values
+      }
+    }))
+  }
+
   if (loading) {
     return (
       <div className="flex items-center justify-center h-64">
         <div className="animate-spin rounded-full h-32 w-32 border-b-2 border-[#C8A951]"></div>
+      </div>
+    )
+  }
+
+  if (error) {
+    return (
+      <div className="flex items-center justify-center h-64">
+        <Card className="p-8 text-center max-w-md">
+          <h2 className="text-xl font-semibold text-gray-800 mb-2">Error Loading Products</h2>
+          <p className="text-gray-600 mb-4">{error}</p>
+          <Button onClick={refetch}>Try Again</Button>
+        </Card>
       </div>
     )
   }
@@ -113,7 +168,7 @@ export function AdminProducts() {
           <h1 className="text-3xl font-bold text-[#1A1D23]">Product Management</h1>
           <p className="text-gray-600 mt-1">Manage garment types and customization options</p>
         </div>
-        <Button>
+        <Button onClick={openCreateModal}>
           <Plus className="w-4 h-4 mr-2" />
           Add New Product
         </Button>
@@ -186,7 +241,7 @@ export function AdminProducts() {
             <Card className="overflow-hidden hover:shadow-lg transition-shadow">
               <div className="relative">
                 <img
-                  src={garment.image_url}
+                  src={garment.image_url || 'https://images.pexels.com/photos/996329/pexels-photo-996329.jpeg'}
                   alt={garment.name}
                   className="w-full h-48 object-cover"
                 />
@@ -218,13 +273,18 @@ export function AdminProducts() {
                 </div>
 
                 <div className="flex space-x-2">
-                  <Button variant="outline" size="sm" className="flex-1">
-                    <Eye className="w-4 h-4 mr-1" />
-                    View
-                  </Button>
-                  <Button variant="outline" size="sm" className="flex-1">
+                  <Button variant="outline" size="sm" className="flex-1" onClick={() => openEditModal(garment)}>
                     <Edit className="w-4 h-4 mr-1" />
                     Edit
+                  </Button>
+                  <Button 
+                    variant="outline" 
+                    size="sm" 
+                    className="text-red-600 hover:text-red-700"
+                    onClick={() => handleDelete(garment.id)}
+                    disabled={deleting === garment.id}
+                  >
+                    <Trash2 className="w-4 h-4" />
                   </Button>
                 </div>
               </div>
@@ -237,9 +297,100 @@ export function AdminProducts() {
         <Card className="p-12 text-center">
           <Package className="w-16 h-16 text-gray-400 mx-auto mb-4" />
           <h3 className="text-lg font-semibold text-gray-600 mb-2">No products found</h3>
-          <p className="text-gray-500">Try adjusting your search criteria</p>
+          <p className="text-gray-500">Try adjusting your search criteria or add a new product</p>
         </Card>
       )}
+
+      {/* Create/Edit Modal */}
+      <Modal
+        isOpen={isModalOpen}
+        onClose={() => setIsModalOpen(false)}
+        title={isCreating ? 'Add New Product' : 'Edit Product'}
+      >
+        <div className="space-y-4 max-h-96 overflow-y-auto">
+          <Input
+            label="Product Name"
+            value={formData.name}
+            onChange={(e) => updateFormData('name', e.target.value)}
+            placeholder="Enter product name"
+            required
+          />
+          
+          <div className="grid grid-cols-2 gap-4">
+            <Input
+              label="Category"
+              value={formData.category}
+              onChange={(e) => updateFormData('category', e.target.value)}
+              placeholder="e.g., Shirts, Suits, Kurtas"
+              required
+            />
+            <Input
+              label="Base Price (₹)"
+              type="number"
+              value={formData.base_price}
+              onChange={(e) => updateFormData('base_price', parseFloat(e.target.value) || 0)}
+              placeholder="0"
+              required
+            />
+          </div>
+
+          <Input
+            label="Image URL"
+            value={formData.image_url}
+            onChange={(e) => updateFormData('image_url', e.target.value)}
+            placeholder="Enter image URL"
+          />
+
+          <div>
+            <label className="block text-sm font-medium text-[#1A1D23] mb-2">
+              Description
+            </label>
+            <textarea
+              value={formData.description}
+              onChange={(e) => updateFormData('description', e.target.value)}
+              placeholder="Enter product description"
+              className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-[#C8A951]"
+              rows={3}
+            />
+          </div>
+
+          <div>
+            <label className="block text-sm font-medium text-[#1A1D23] mb-2">
+              Customization Options
+            </label>
+            {Object.entries(formData.customization_options).map(([key, values]) => (
+              <div key={key} className="mb-3">
+                <label className="block text-xs font-medium text-gray-600 mb-1 capitalize">
+                  {key.replace('_', ' ')}
+                </label>
+                <Input
+                  value={values.join(', ')}
+                  onChange={(e) => updateCustomizationOption(key, e.target.value.split(',').map(v => v.trim()).filter(v => v))}
+                  placeholder="Enter options separated by commas"
+                />
+              </div>
+            ))}
+          </div>
+
+          <div className="flex space-x-3 pt-4">
+            <Button
+              onClick={handleSave}
+              disabled={saving || !formData.name || !formData.category}
+              className="flex-1"
+            >
+              <Save className="w-4 h-4 mr-2" />
+              {saving ? 'Saving...' : 'Save Product'}
+            </Button>
+            <Button
+              variant="outline"
+              onClick={() => setIsModalOpen(false)}
+              disabled={saving}
+            >
+              Cancel
+            </Button>
+          </div>
+        </div>
+      </Modal>
     </div>
   )
 }

@@ -1,78 +1,38 @@
 import React, { useState, useEffect } from 'react'
 import { motion } from 'framer-motion'
-import { Search, Plus, Edit, Eye, Palette, Star } from 'lucide-react'
+import { Search, Plus, Edit, Eye, Palette, Star, Trash2, Save, X } from 'lucide-react'
 import { Button } from '../../components/ui/Button'
 import { Input } from '../../components/ui/Input'
 import { Card } from '../../components/ui/Card'
-import { Fabric } from '../../types'
+import { Modal } from '../../components/ui/Modal'
+import { useFabrics } from '../../hooks/useRealTimeData'
+import { fabricAPI, Fabric } from '../../lib/supabase'
 
 export function AdminFabrics() {
-  const [fabrics, setFabrics] = useState<Fabric[]>([])
+  const { fabrics, loading, error, refetch } = useFabrics()
   const [filteredFabrics, setFilteredFabrics] = useState<Fabric[]>([])
-  const [loading, setLoading] = useState(true)
   const [searchTerm, setSearchTerm] = useState('')
   const [materialFilter, setMaterialFilter] = useState('all')
+  const [isModalOpen, setIsModalOpen] = useState(false)
+  const [editingFabric, setEditingFabric] = useState<Fabric | null>(null)
+  const [isCreating, setIsCreating] = useState(false)
+  const [saving, setSaving] = useState(false)
+  const [deleting, setDeleting] = useState<string | null>(null)
 
-  useEffect(() => {
-    fetchFabrics()
-  }, [])
+  const [formData, setFormData] = useState({
+    name: '',
+    material: '',
+    color: '',
+    price_per_meter: 0,
+    stock: 0,
+    description: '',
+    featured: false,
+    images_json: ['']
+  })
 
   useEffect(() => {
     filterFabrics()
   }, [fabrics, searchTerm, materialFilter])
-
-  const fetchFabrics = async () => {
-    try {
-      // Sample fabric data
-      const sampleFabrics = [
-        {
-          id: '1',
-          name: 'Premium Silk',
-          material: 'Silk',
-          price_per_meter: 2500,
-          color: 'Golden',
-          stock: 50,
-          images_json: ['https://images.pexels.com/photos/6069107/pexels-photo-6069107.jpeg'],
-          featured: true,
-          description: 'Luxurious silk fabric perfect for wedding wear and special occasions',
-          created_at: new Date().toISOString(),
-          updated_at: new Date().toISOString()
-        },
-        {
-          id: '2',
-          name: 'Italian Wool',
-          material: 'Wool',
-          price_per_meter: 3200,
-          color: 'Navy Blue',
-          stock: 30,
-          images_json: ['https://images.pexels.com/photos/7679720/pexels-photo-7679720.jpeg'],
-          featured: true,
-          description: 'Premium Italian wool for sophisticated suits and formal wear',
-          created_at: new Date().toISOString(),
-          updated_at: new Date().toISOString()
-        },
-        {
-          id: '3',
-          name: 'Egyptian Cotton',
-          material: 'Cotton',
-          price_per_meter: 1800,
-          color: 'White',
-          stock: 75,
-          images_json: ['https://images.pexels.com/photos/6069102/pexels-photo-6069102.jpeg'],
-          featured: false,
-          description: 'Finest Egyptian cotton for comfortable everyday wear',
-          created_at: new Date().toISOString(),
-          updated_at: new Date().toISOString()
-        }
-      ]
-      
-      setFabrics(sampleFabrics)
-    } catch (error) {
-      console.error('Error fetching fabrics:', error)
-    } finally {
-      setLoading(false)
-    }
-  }
 
   const filterFabrics = () => {
     let filtered = fabrics
@@ -94,18 +54,129 @@ export function AdminFabrics() {
 
   const materials = [...new Set(fabrics.map(f => f.material))]
 
-  const toggleFeatured = async (fabricId: string) => {
-    setFabrics(fabrics.map(fabric => 
-      fabric.id === fabricId 
-        ? { ...fabric, featured: !fabric.featured }
-        : fabric
-    ))
+  const openCreateModal = () => {
+    setFormData({
+      name: '',
+      material: '',
+      color: '',
+      price_per_meter: 0,
+      stock: 0,
+      description: '',
+      featured: false,
+      images_json: ['']
+    })
+    setEditingFabric(null)
+    setIsCreating(true)
+    setIsModalOpen(true)
+  }
+
+  const openEditModal = (fabric: Fabric) => {
+    setFormData({
+      name: fabric.name,
+      material: fabric.material,
+      color: fabric.color,
+      price_per_meter: fabric.price_per_meter,
+      stock: fabric.stock,
+      description: fabric.description || '',
+      featured: fabric.featured,
+      images_json: fabric.images_json.length > 0 ? fabric.images_json : ['']
+    })
+    setEditingFabric(fabric)
+    setIsCreating(false)
+    setIsModalOpen(true)
+  }
+
+  const handleSave = async () => {
+    try {
+      setSaving(true)
+      
+      const fabricData = {
+        ...formData,
+        images_json: formData.images_json.filter(url => url.trim() !== '')
+      }
+
+      if (isCreating) {
+        await fabricAPI.create(fabricData)
+      } else if (editingFabric) {
+        await fabricAPI.update(editingFabric.id, fabricData)
+      }
+
+      setIsModalOpen(false)
+      refetch()
+    } catch (error) {
+      console.error('Error saving fabric:', error)
+      alert('Failed to save fabric. Please try again.')
+    } finally {
+      setSaving(false)
+    }
+  }
+
+  const handleDelete = async (fabricId: string) => {
+    if (!confirm('Are you sure you want to delete this fabric?')) return
+
+    try {
+      setDeleting(fabricId)
+      await fabricAPI.delete(fabricId)
+      refetch()
+    } catch (error) {
+      console.error('Error deleting fabric:', error)
+      alert('Failed to delete fabric. Please try again.')
+    } finally {
+      setDeleting(null)
+    }
+  }
+
+  const toggleFeatured = async (fabric: Fabric) => {
+    try {
+      await fabricAPI.update(fabric.id, { featured: !fabric.featured })
+      refetch()
+    } catch (error) {
+      console.error('Error updating fabric:', error)
+      alert('Failed to update fabric. Please try again.')
+    }
+  }
+
+  const updateFormData = (key: string, value: any) => {
+    setFormData(prev => ({ ...prev, [key]: value }))
+  }
+
+  const addImageField = () => {
+    setFormData(prev => ({
+      ...prev,
+      images_json: [...prev.images_json, '']
+    }))
+  }
+
+  const removeImageField = (index: number) => {
+    setFormData(prev => ({
+      ...prev,
+      images_json: prev.images_json.filter((_, i) => i !== index)
+    }))
+  }
+
+  const updateImageUrl = (index: number, url: string) => {
+    setFormData(prev => ({
+      ...prev,
+      images_json: prev.images_json.map((img, i) => i === index ? url : img)
+    }))
   }
 
   if (loading) {
     return (
       <div className="flex items-center justify-center h-64">
         <div className="animate-spin rounded-full h-32 w-32 border-b-2 border-[#C8A951]"></div>
+      </div>
+    )
+  }
+
+  if (error) {
+    return (
+      <div className="flex items-center justify-center h-64">
+        <Card className="p-8 text-center max-w-md">
+          <h2 className="text-xl font-semibold text-gray-800 mb-2">Error Loading Fabrics</h2>
+          <p className="text-gray-600 mb-4">{error}</p>
+          <Button onClick={refetch}>Try Again</Button>
+        </Card>
       </div>
     )
   }
@@ -118,7 +189,7 @@ export function AdminFabrics() {
           <h1 className="text-3xl font-bold text-[#1A1D23]">Fabric Management</h1>
           <p className="text-gray-600 mt-1">Manage fabric inventory and pricing</p>
         </div>
-        <Button>
+        <Button onClick={openCreateModal}>
           <Plus className="w-4 h-4 mr-2" />
           Add New Fabric
         </Button>
@@ -193,7 +264,7 @@ export function AdminFabrics() {
             <div>
               <p className="text-sm font-medium text-gray-600">Avg Price</p>
               <p className="text-2xl font-bold text-[#1A1D23] mt-1">
-                ₹{Math.round(fabrics.reduce((sum, f) => sum + f.price_per_meter, 0) / fabrics.length)}
+                ₹{fabrics.length > 0 ? Math.round(fabrics.reduce((sum, f) => sum + f.price_per_meter, 0) / fabrics.length) : 0}
               </p>
             </div>
             <div className="p-3 rounded-full bg-purple-50">
@@ -215,7 +286,7 @@ export function AdminFabrics() {
             <Card className="overflow-hidden hover:shadow-lg transition-shadow">
               <div className="relative">
                 <img
-                  src={fabric.images_json[0]}
+                  src={fabric.images_json[0] || 'https://images.pexels.com/photos/6069107/pexels-photo-6069107.jpeg'}
                   alt={fabric.name}
                   className="w-full h-48 object-cover"
                 />
@@ -253,7 +324,7 @@ export function AdminFabrics() {
                     </span>
                   </div>
                   <button
-                    onClick={() => toggleFeatured(fabric.id)}
+                    onClick={() => toggleFeatured(fabric)}
                     className={`p-1 rounded ${
                       fabric.featured ? 'text-[#C8A951]' : 'text-gray-400'
                     }`}
@@ -263,13 +334,18 @@ export function AdminFabrics() {
                 </div>
 
                 <div className="flex space-x-2">
-                  <Button variant="outline" size="sm" className="flex-1">
-                    <Eye className="w-4 h-4 mr-1" />
-                    View
-                  </Button>
-                  <Button variant="outline" size="sm" className="flex-1">
+                  <Button variant="outline" size="sm" className="flex-1" onClick={() => openEditModal(fabric)}>
                     <Edit className="w-4 h-4 mr-1" />
                     Edit
+                  </Button>
+                  <Button 
+                    variant="outline" 
+                    size="sm" 
+                    className="text-red-600 hover:text-red-700"
+                    onClick={() => handleDelete(fabric.id)}
+                    disabled={deleting === fabric.id}
+                  >
+                    <Trash2 className="w-4 h-4" />
                   </Button>
                 </div>
               </div>
@@ -282,9 +358,133 @@ export function AdminFabrics() {
         <Card className="p-12 text-center">
           <Palette className="w-16 h-16 text-gray-400 mx-auto mb-4" />
           <h3 className="text-lg font-semibold text-gray-600 mb-2">No fabrics found</h3>
-          <p className="text-gray-500">Try adjusting your search criteria</p>
+          <p className="text-gray-500">Try adjusting your search criteria or add a new fabric</p>
         </Card>
       )}
+
+      {/* Create/Edit Modal */}
+      <Modal
+        isOpen={isModalOpen}
+        onClose={() => setIsModalOpen(false)}
+        title={isCreating ? 'Add New Fabric' : 'Edit Fabric'}
+      >
+        <div className="space-y-4">
+          <Input
+            label="Fabric Name"
+            value={formData.name}
+            onChange={(e) => updateFormData('name', e.target.value)}
+            placeholder="Enter fabric name"
+            required
+          />
+          
+          <div className="grid grid-cols-2 gap-4">
+            <Input
+              label="Material"
+              value={formData.material}
+              onChange={(e) => updateFormData('material', e.target.value)}
+              placeholder="e.g., Cotton, Silk, Wool"
+              required
+            />
+            <Input
+              label="Color"
+              value={formData.color}
+              onChange={(e) => updateFormData('color', e.target.value)}
+              placeholder="e.g., Navy Blue, Red"
+              required
+            />
+          </div>
+
+          <div className="grid grid-cols-2 gap-4">
+            <Input
+              label="Price per Meter (₹)"
+              type="number"
+              value={formData.price_per_meter}
+              onChange={(e) => updateFormData('price_per_meter', parseFloat(e.target.value) || 0)}
+              placeholder="0"
+              required
+            />
+            <Input
+              label="Stock (meters)"
+              type="number"
+              value={formData.stock}
+              onChange={(e) => updateFormData('stock', parseInt(e.target.value) || 0)}
+              placeholder="0"
+              required
+            />
+          </div>
+
+          <div>
+            <label className="block text-sm font-medium text-[#1A1D23] mb-2">
+              Description
+            </label>
+            <textarea
+              value={formData.description}
+              onChange={(e) => updateFormData('description', e.target.value)}
+              placeholder="Enter fabric description"
+              className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-[#C8A951]"
+              rows={3}
+            />
+          </div>
+
+          <div>
+            <label className="block text-sm font-medium text-[#1A1D23] mb-2">
+              Images
+            </label>
+            {formData.images_json.map((url, index) => (
+              <div key={index} className="flex space-x-2 mb-2">
+                <Input
+                  value={url}
+                  onChange={(e) => updateImageUrl(index, e.target.value)}
+                  placeholder="Enter image URL"
+                  className="flex-1"
+                />
+                {formData.images_json.length > 1 && (
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={() => removeImageField(index)}
+                    className="text-red-600"
+                  >
+                    <X className="w-4 h-4" />
+                  </Button>
+                )}
+              </div>
+            ))}
+            <Button variant="outline" size="sm" onClick={addImageField}>
+              <Plus className="w-4 h-4 mr-2" />
+              Add Image
+            </Button>
+          </div>
+
+          <label className="flex items-center space-x-2">
+            <input
+              type="checkbox"
+              checked={formData.featured}
+              onChange={(e) => updateFormData('featured', e.target.checked)}
+              className="rounded border-gray-300 text-[#C8A951] focus:ring-[#C8A951]"
+            />
+            <span className="text-sm text-[#1A1D23]">Featured Fabric</span>
+          </label>
+
+          <div className="flex space-x-3 pt-4">
+            <Button
+              onClick={handleSave}
+              disabled={saving || !formData.name || !formData.material || !formData.color}
+              className="flex-1"
+            >
+              <Save className="w-4 h-4 mr-2" />
+              {saving ? 'Saving...' : 'Save Fabric'}
+            </Button>
+            <Button
+              variant="outline"
+              onClick={() => setIsModalOpen(false)}
+              disabled={saving}
+            >
+              Cancel
+            </Button>
+          </div>
+        </div>
+      </Modal>
     </div>
   )
 }
