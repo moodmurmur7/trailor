@@ -3,12 +3,12 @@ import { motion } from 'framer-motion'
 import { BarChart3, Users, ShoppingBag, Clock, TrendingUp, Calendar, Phone, Mail, RefreshCw, AlertCircle } from 'lucide-react'
 import { Card } from '../../components/ui/Card'
 import { Button } from '../../components/ui/Button'
-import { useRealTimeOrders, useRealTimeCustomers } from '../../hooks/useRealTimeData'
-import { Order, Customer } from '../../types'
+import { useOrders, useCustomers } from '../../hooks/useRealTimeData'
+import { Order, Customer } from '../../lib/supabase'
 
 export function AdminDashboard() {
-  const { data: orders, loading: ordersLoading, error: ordersError, refetch: refetchOrders } = useRealTimeOrders()
-  const { data: customers, loading: customersLoading, error: customersError, refetch: refetchCustomers } = useRealTimeCustomers()
+  const { orders, loading: ordersLoading, error: ordersError, refetch: refetchOrders } = useOrders()
+  const { customers, loading: customersLoading, error: customersError, refetch: refetchCustomers } = useCustomers()
   
   const [stats, setStats] = useState({
     todayOrders: 0,

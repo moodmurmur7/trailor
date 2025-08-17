@@ -4,85 +4,17 @@ import { Search, Phone, Mail, User, Calendar } from 'lucide-react'
 import { Button } from '../../components/ui/Button'
 import { Input } from '../../components/ui/Input'
 import { Card } from '../../components/ui/Card'
-import { supabase } from '../../lib/supabase'
-import { Customer } from '../../types'
+import { useCustomers } from '../../hooks/useRealTimeData'
+import { Customer } from '../../lib/supabase'
 
 export function AdminCustomers() {
-  const [customers, setCustomers] = useState<Customer[]>([])
+  const { customers, loading, error, refetch } = useCustomers()
   const [filteredCustomers, setFilteredCustomers] = useState<Customer[]>([])
-  const [loading, setLoading] = useState(true)
   const [searchTerm, setSearchTerm] = useState('')
-
-  useEffect(() => {
-    fetchCustomers()
-  }, [])
 
   useEffect(() => {
     filterCustomers()
   }, [customers, searchTerm])
-
-  const fetchCustomers = async () => {
-    try {
-      const { data, error } = await supabase
-        .from('customers')
-        .select('*')
-        .order('created_at', { ascending: false })
-
-      if (error) throw error
-
-      // Add sample data if no customers exist
-      if (!data || data.length === 0) {
-        const sampleCustomers = [
-          {
-            id: '1',
-            name: 'Rajesh Kumar',
-            phone: '+91 98765 43210',
-            email: 'rajesh@email.com',
-            measurements_json: {
-              chest: 40,
-              waist: 34,
-              shoulder: 18
-            },
-            created_at: new Date().toISOString(),
-            updated_at: new Date().toISOString()
-          },
-          {
-            id: '2',
-            name: 'Priya Sharma',
-            phone: '+91 87654 32109',
-            email: 'priya@email.com',
-            measurements_json: {
-              bust: 36,
-              waist: 28,
-              hips: 38
-            },
-            created_at: new Date().toISOString(),
-            updated_at: new Date().toISOString()
-          },
-          {
-            id: '3',
-            name: 'Amit Patel',
-            phone: '+91 76543 21098',
-            email: 'amit@email.com',
-            measurements_json: {
-              chest: 42,
-              waist: 36,
-              shoulder: 19
-            },
-            created_at: new Date().toISOString(),
-            updated_at: new Date().toISOString()
-          }
-        ]
-        setCustomers(sampleCustomers)
-      } else {
-        setCustomers(data)
-      }
-    } catch (error) {
-      console.error('Error fetching customers:', error)
-    } finally {
-      setLoading(false)
-    }
-  }
 
   const filterCustomers = () => {
     let filtered = customers
@@ -106,6 +38,18 @@ export function AdminCustomers() {
     )
   }
 
+  if (error) {
+    return (
+      <div className="flex items-center justify-center h-64">
+        <Card className="p-8 text-center max-w-md">
+          <h2 className="text-xl font-semibold text-gray-800 mb-2">Error Loading Customers</h2>
+          <p className="text-gray-600 mb-4">{error}</p>
+          <Button onClick={refetch}>Try Again</Button>
+        </Card>
+      </div>
+    )
+  }
+
   return (
     <div className="space-y-6">
       {/* Header */}
@@ -114,7 +58,7 @@ export function AdminCustomers() {
           <h1 className="text-3xl font-bold text-[#1A1D23]">Customer Management</h1>
           <p className="text-gray-600 mt-1">View and manage customer information</p>
         </div>
-        <Button onClick={fetchCustomers}>
+        <Button onClick={refetch}>
           Refresh Data
         </Button>
       </div>

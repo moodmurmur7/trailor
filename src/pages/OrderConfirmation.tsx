@@ -4,7 +4,7 @@ import { motion } from 'framer-motion'
 import { CheckCircle, Download, Phone, Mail, MapPin, Clock, Scissors, AlertCircle } from 'lucide-react'
 import { Button } from '../components/ui/Button'
 import { Card } from '../components/ui/Card'
-import { supabase } from '../lib/supabase'
+import { orderAPI } from '../lib/supabase'
 
 export function OrderConfirmation() {
   const { trackingId } = useParams()
@@ -23,18 +23,7 @@ export function OrderConfirmation() {
       setLoading(true)
       setError(null)
       
-      const { data, error } = await supabase
-        .from('orders')
-        .select(`
-          *,
-          customer:customers(*),
-          fabric:fabrics(*),
-          garment:garments(*)
-        `)
-        .eq('tracking_id', trackingId)
-        .single()
-
-      if (error) throw error
+      const data = await orderAPI.getByTrackingId(trackingId!)
 
       if (data) {
         setOrderDetails({
@@ -63,10 +52,6 @@ export function OrderConfirmation() {
   }
 
   const handleDownloadBill = () => {
-    window.print()
-  }
-
-  const handlePrintBill = () => {
     window.print()
   }
 
@@ -252,9 +237,6 @@ export function OrderConfirmation() {
           <Button onClick={handleDownloadBill} variant="outline">
             <Download className="w-4 h-4 mr-2" />
             Download Bill
-          </Button>
-          <Button onClick={handlePrintBill} variant="outline">
-            Print Bill
           </Button>
           <Link to={`/track`}>
             <Button>

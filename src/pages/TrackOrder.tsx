@@ -4,7 +4,7 @@ import { Search, CheckCircle, Clock, Package, Scissors, Sparkles, Shield, Gift, 
 import { Button } from '../components/ui/Button'
 import { Input } from '../components/ui/Input'
 import { Card } from '../components/ui/Card'
-import { supabase } from '../lib/supabase'
+import { orderAPI } from '../lib/supabase'
 
 export function TrackOrder() {
   const [trackingId, setTrackingId] = useState('')
@@ -32,18 +32,7 @@ export function TrackOrder() {
     setError(null)
     
     try {
-      const { data, error } = await supabase
-        .from('orders')
-        .select(`
-          *,
-          customer:customers(*),
-          fabric:fabrics(*),
-          garment:garments(*)
-        `)
-        .eq('tracking_id', trackingId.trim())
-        .single()
-
-      if (error) throw error
+      const data = await orderAPI.getByTrackingId(trackingId.trim())
 
       if (data) {
         const statusIndex = statusSteps.findIndex(step => step.key === data.status)

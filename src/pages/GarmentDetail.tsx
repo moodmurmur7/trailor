@@ -1,11 +1,10 @@
 import React, { useState, useEffect } from 'react'
 import { useParams, Link } from 'react-router-dom'
 import { motion } from 'framer-motion'
-import { ArrowLeft, ShoppingBag, Star, Clock, Truck, Palette, AlertCircle } from 'lucide-react'
+import { ArrowLeft, ShoppingBag, Clock, Truck, Palette, AlertCircle } from 'lucide-react'
 import { Button } from '../components/ui/Button'
 import { Card } from '../components/ui/Card'
-import { supabase } from '../lib/supabase'
-import { Garment } from '../types'
+import { garmentAPI, Garment } from '../lib/supabase'
 
 export function GarmentDetail() {
   const { id } = useParams()
@@ -24,14 +23,7 @@ export function GarmentDetail() {
       setLoading(true)
       setError(null)
       
-      const { data, error } = await supabase
-        .from('garments')
-        .select('*')
-        .eq('id', id)
-        .single()
-
-      if (error) throw error
-      
+      const data = await garmentAPI.getById(id!)
       setGarment(data)
     } catch (error: any) {
       console.error('Error fetching garment:', error)
@@ -107,10 +99,12 @@ export function GarmentDetail() {
               </div>
             </div>
 
-            <Card className="p-6">
-              <h3 className="text-lg font-semibold text-[#1A1D23] mb-3">Description</h3>
-              <p className="text-gray-700 leading-relaxed">{garment.description}</p>
-            </Card>
+            {garment.description && (
+              <Card className="p-6">
+                <h3 className="text-lg font-semibold text-[#1A1D23] mb-3">Description</h3>
+                <p className="text-gray-700 leading-relaxed">{garment.description}</p>
+              </Card>
+            )}
 
             {/* Customization Options */}
             {garment.customization_options && Object.keys(garment.customization_options).length > 0 && (

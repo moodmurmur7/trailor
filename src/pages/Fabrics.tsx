@@ -153,7 +153,7 @@ export function Fabrics() {
                 <Card hover className="overflow-hidden group">
                   <div className="relative">
                     <img
-                      src={fabric.images?.[0] || 'https://images.pexels.com/photos/6069107/pexels-photo-6069107.jpeg'}
+                      src={fabric.images_json?.[0] || 'https://images.pexels.com/photos/6069107/pexels-photo-6069107.jpeg'}
                       alt={fabric.name}
                       className="w-full h-64 object-cover group-hover:scale-105 transition-transform duration-300"
                       onError={(e) => {
@@ -166,11 +166,16 @@ export function Fabrics() {
                       </div>
                     )}
                     <div className="absolute top-4 right-4 bg-white bg-opacity-90 px-2 py-1 rounded-full text-sm font-medium">
-                      {fabric.stock_meters}m in stock
+                      {fabric.stock}m in stock
                     </div>
-                    {fabric.stock_meters <= fabric.minimum_stock && (
-                      <div className="absolute bottom-4 left-4 bg-red-500 text-white px-2 py-1 rounded-full text-xs font-medium">
+                    {fabric.stock <= 10 && fabric.stock > 0 && (
+                      <div className="absolute bottom-4 left-4 bg-orange-500 text-white px-2 py-1 rounded-full text-xs font-medium">
                         Low Stock
+                      </div>
+                    )}
+                    {fabric.stock <= 0 && (
+                      <div className="absolute bottom-4 left-4 bg-red-500 text-white px-2 py-1 rounded-full text-xs font-medium">
+                        Out of Stock
                       </div>
                     )}
                   </div>
@@ -183,12 +188,6 @@ export function Fabrics() {
                       <span className="text-sm text-gray-600">{fabric.material}</span>
                       <span className="text-sm text-gray-600">•</span>
                       <span className="text-sm text-gray-600">{fabric.color}</span>
-                      {fabric.pattern && (
-                        <>
-                          <span className="text-sm text-gray-600">•</span>
-                          <span className="text-sm text-gray-600">{fabric.pattern}</span>
-                        </>
-                      )}
                     </div>
                     {fabric.description && (
                       <p className="text-gray-600 text-sm mb-4 line-clamp-2">{fabric.description}</p>
@@ -201,9 +200,9 @@ export function Fabrics() {
                         </Button>
                       </Link>
                       <Link to={`/customize?fabric=${fabric.id}`}>
-                        <Button disabled={fabric.stock_meters <= 0}>
+                        <Button disabled={fabric.stock <= 0}>
                           <ShoppingBag className="w-4 h-4 mr-2" />
-                          {fabric.stock_meters <= 0 ? 'Out of Stock' : 'Select'}
+                          {fabric.stock <= 0 ? 'Out of Stock' : 'Select'}
                         </Button>
                       </Link>
                     </div>

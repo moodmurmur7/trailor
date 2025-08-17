@@ -5,7 +5,7 @@ import { ArrowLeft, ArrowRight, Palette, Scissors, Ruler, CreditCard, AlertCircl
 import { Button } from '../components/ui/Button'
 import { Card } from '../components/ui/Card'
 import { Input } from '../components/ui/Input'
-import { supabase } from '../lib/supabase'
+import { fabricAPI, garmentAPI, orderAPI } from '../lib/supabase'
 
 export function Customize() {
   const [searchParams] = useSearchParams()
@@ -44,7 +44,6 @@ export function Customize() {
     customer: {
       name: '',
       phone: '',
-      alternate_phone: '',
       email: '',
       address: ''
     }
@@ -83,15 +82,16 @@ export function Customize() {
 
   const fetchData = async () => {
     try {
-      const [fabricsResponse, garmentsResponse] = await Promise.all([
-        supabase.from('fabrics').select('*').eq('stock', 0, { negate: true }),
-        supabase.from('garments').select('*')
+      const [fabricsData, garmentsData] = await Promise.all([
+        fabricAPI.getAll(),
+        garmentAPI.getAll()
       ])
 
-      if (fabricsResponse.data) setFabrics(fabricsResponse.data)
-      if (garmentsResponse.data) setGarments(garmentsResponse.data)
+      setFabrics(fabricsData.filter(f => f.stock > 0))
+      setGarments(garmentsData)
     } catch (error) {
       console.error('Error fetching data:', error)
+      setError('Failed to load data. Please refresh the page.')
     }
   }
 
@@ -140,7 +140,7 @@ export function Customize() {
   const calculateTotalPrice = () => {
     let total = 0
     if (orderData.garment) total += orderData.garment.base_price
-    if (orderData.fabric) total += orderData.fabric.price_per_meter * 2 // Assuming 2 meters
+    if (orderData.fabric) total += orderData.fabric.price_per_meter * 2.5 // Assuming 2.5 meters
     if (orderData.customizations.lining) total += 300
     if (orderData.measurements.method === 'home_visit') total += 200
     return total
@@ -160,52 +160,23 @@ export function Customize() {
         throw new Error('Please select both fabric and garment')
       }
 
-      // Create customer first
-      const { data: customerData, error: customerError } = await supabase
-        .from('customers')
-        .insert({
-          name: orderData.customer.name,
-          phone: orderData.customer.phone,
-          email: orderData.customer.email,
-          measurements_json: orderData.measurements
-        })
-        .select()
-        .single()
-
-      if (customerError) throw customerError
-
-      // Generate tracking ID
-      const trackingId = 'RT' + Date.now().toString().slice(-6)
-
       // Create order
-      const { data: orderResult, error: orderError } = await supabase
-        .from('orders')
-        .insert({
-          customer_id: customerData.id,
-          fabric_id: orderData.fabric.id,
-          garment_id: orderData.garment.id,
-          tracking_id: trackingId,
-          customizations_json: orderData.customizations,
-          measurements_json: orderData.measurements,
-          price: calculateTotalPrice(),
-          status: 'confirmed',
-          urgent: false,
-          special_instructions: orderData.customizations.special_instructions || '',
-          estimated_completion: new Date(Date.now() + 14 * 24 * 60 * 60 * 1000).toISOString().split('T')[0]
-        })
-        .select()
-        .single()
-
-      if (orderError) throw orderError
+      const result = await orderAPI.create({
+        customer: orderData.customer,
+        fabric_id: orderData.fabric.id,
+        garment_id: orderData.garment.id,
+        customizations: orderData.customizations,
+        measurements: orderData.measurements,
+        price: calculateTotalPrice(),
+        urgent: false,
+        special_instructions: orderData.customizations.special_instructions
+      })
 
       // Update fabric stock
-      await supabase
-        .from('fabrics')
-        .update({ stock: orderData.fabric.stock - 2 })
-        .eq('id', orderData.fabric.id)
+      await fabricAPI.updateStock(orderData.fabric.id, orderData.fabric.stock - 2.5)
 
       // Navigate to confirmation page
-      navigate(`/order-confirmation/${trackingId}`)
+      navigate(`/order-confirmation/${result.tracking_id}`)
     } catch (error: any) {
       console.error('Error placing order:', error)
       setError(error.message || 'Failed to place order. Please try again.')
@@ -587,23 +558,14 @@ function ContactDetailsStep({ orderData, updateCustomer }: any) {
           placeholder="Enter your full name"
           required
         />
-        <div className="grid md:grid-cols-2 gap-4">
-          <Input
-            label="Mobile Number *"
-            type="tel"
-            value={orderData.customer.phone}
-            onChange={(e) => updateCustomer('phone', e.target.value)}
-            placeholder="Enter mobile number"
-            required
-          />
-          <Input
-            label="Alternate Number"
-            type="tel"
-            value={orderData.customer.alternate_phone}
-            onChange={(e) => updateCustomer('alternate_phone', e.target.value)}
-            placeholder="Enter alternate number"
-          />
-        </div>
+        <Input
+          label="Mobile Number *"
+          type="tel"
+          value={orderData.customer.phone}
+          onChange={(e) => updateCustomer('phone', e.target.value)}
+          placeholder="Enter mobile number"
+          required
+        />
         <Input
           label="Email Address *"
           type="email"
@@ -641,8 +603,8 @@ function ReviewPaymentStep({ orderData, calculateTotal, onPlaceOrder, loading }:
             <span>₹{orderData.garment?.base_price || 0}</span>
           </div>
           <div className="flex justify-between">
-            <span>Fabric Cost (2 meters - {orderData.fabric?.name})</span>
-            <span>₹{orderData.fabric ? orderData.fabric.price_per_meter * 2 : 0}</span>
+            <span>Fabric Cost (2.5 meters - {orderData.fabric?.name})</span>
+            <span>₹{orderData.fabric ? orderData.fabric.price_per_meter * 2.5 : 0}</span>
           </div>
           {orderData.customizations.lining && (
             <div className="flex justify-between">

@@ -156,3 +156,7 @@ export function useOrderTracking(trackingId: string | null) {
 
   return { order, loading, error, trackOrder }
 }
+
+// Alias for backward compatibility
+export const useRealTimeOrders = useOrders
+export const useRealTimeCustomers = useCustomers

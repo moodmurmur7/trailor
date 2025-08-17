@@ -1,11 +1,10 @@
 import React, { useState, useEffect } from 'react'
 import { useParams, Link } from 'react-router-dom'
 import { motion } from 'framer-motion'
-import { ArrowLeft, ShoppingBag, ZoomIn as Zoom, Star, Clock, Truck, AlertCircle } from 'lucide-react'
+import { ArrowLeft, ShoppingBag, ZoomIn as Zoom, Clock, Truck, AlertCircle } from 'lucide-react'
 import { Button } from '../components/ui/Button'
 import { Card } from '../components/ui/Card'
-import { supabase } from '../lib/supabase'
-import { Fabric } from '../types'
+import { fabricAPI, Fabric } from '../lib/supabase'
 
 export function FabricDetail() {
   const { id } = useParams()
@@ -26,14 +25,7 @@ export function FabricDetail() {
       setLoading(true)
       setError(null)
       
-      const { data, error } = await supabase
-        .from('fabrics')
-        .select('*')
-        .eq('id', id)
-        .single()
-
-      if (error) throw error
-      
+      const data = await fabricAPI.getById(id!)
       setFabric(data)
     } catch (error: any) {
       console.error('Error fetching fabric:', error)
@@ -68,14 +60,6 @@ export function FabricDetail() {
       </div>
     )
   }
-
-  const extraCharges = [
-    { name: 'Urgent Order (7 days)', price: 500 },
-    { name: 'Premium Embroidery', price: 800 },
-    { name: 'Special Buttons', price: 200 },
-    { name: 'Premium Lining', price: 300 },
-    { name: 'Home Measurement', price: 200 }
-  ]
 
   const images = fabric.images_json && fabric.images_json.length > 0 
     ? fabric.images_json 
@@ -154,7 +138,9 @@ export function FabricDetail() {
               <div className="flex items-center space-x-4 mb-4">
                 <span className="text-2xl font-bold text-[#C8A951]">₹{fabric.price_per_meter}/meter</span>
                 <span className="text-gray-600">•</span>
-                <span className="text-gray-600">{fabric.stock} meters available</span>
+                <span className={`${fabric.stock <= 0 ? 'text-red-600' : fabric.stock <= 10 ? 'text-orange-600' : 'text-gray-600'}`}>
+                  {fabric.stock} meters available
+                </span>
               </div>
               <div className="flex items-center space-x-6 mb-6">
                 <div className="flex items-center space-x-2">
@@ -168,23 +154,12 @@ export function FabricDetail() {
               </div>
             </div>
 
-            <Card className="p-6">
-              <h3 className="text-lg font-semibold text-[#1A1D23] mb-3">Description</h3>
-              <p className="text-gray-700 leading-relaxed">{fabric.description}</p>
-            </Card>
-
-            {/* Extra Charges */}
-            <Card className="p-6">
-              <h3 className="text-lg font-semibold text-[#1A1D23] mb-4">Additional Services</h3>
-              <div className="space-y-3">
-                {extraCharges.map((charge, index) => (
-                  <div key={index} className="flex items-center justify-between py-2 border-b border-gray-100 last:border-b-0">
-                    <span className="text-gray-700">{charge.name}</span>
-                    <span className="font-medium text-[#C8A951]">+₹{charge.price}</span>
-                  </div>
-                ))}
-              </div>
-            </Card>
+            {fabric.description && (
+              <Card className="p-6">
+                <h3 className="text-lg font-semibold text-[#1A1D23] mb-3">Description</h3>
+                <p className="text-gray-700 leading-relaxed">{fabric.description}</p>
+              </Card>
+            )}
 
             {/* Delivery Info */}
             <Card className="p-6">

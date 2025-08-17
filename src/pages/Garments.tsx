@@ -13,11 +13,10 @@ export function Garments() {
   const [filteredGarments, setFilteredGarments] = useState<Garment[]>([])
   const [searchTerm, setSearchTerm] = useState('')
   const [selectedCategory, setSelectedCategory] = useState('all')
-  const [selectedGender, setSelectedGender] = useState('all')
 
   useEffect(() => {
     filterGarments()
-  }, [garments, searchTerm, selectedCategory, selectedGender])
+  }, [garments, searchTerm, selectedCategory])
 
   const filterGarments = () => {
     let filtered = garments
@@ -34,15 +33,10 @@ export function Garments() {
       filtered = filtered.filter(garment => garment.category === selectedCategory)
     }
 
-    if (selectedGender !== 'all') {
-      filtered = filtered.filter(garment => garment.gender === selectedGender || garment.gender === 'unisex')
-    }
-
     setFilteredGarments(filtered)
   }
 
   const categories = [...new Set(garments.map(g => g.category))]
-  const genders = [...new Set(garments.map(g => g.gender).filter(Boolean))]
 
   if (error) {
     return (
@@ -76,7 +70,7 @@ export function Garments() {
 
         {/* Filters */}
         <Card className="p-6 mb-8">
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
             <div className="relative">
               <Search className="absolute left-3 top-3 w-4 h-4 text-gray-400" />
               <Input
@@ -94,16 +88,6 @@ export function Garments() {
               <option value="all">All Categories</option>
               {categories.map(category => (
                 <option key={category} value={category}>{category}</option>
-              ))}
-            </select>
-            <select
-              value={selectedGender}
-              onChange={(e) => setSelectedGender(e.target.value)}
-              className="px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-[#C8A951]"
-            >
-              <option value="all">All Genders</option>
-              {genders.map(gender => (
-                <option key={gender} value={gender}>{gender?.charAt(0).toUpperCase() + gender?.slice(1)}</option>
               ))}
             </select>
           </div>
@@ -140,15 +124,6 @@ export function Garments() {
                     <div className="absolute top-4 right-4 bg-[#C8A951] text-white px-3 py-1 rounded-full text-sm font-medium">
                       {garment.category}
                     </div>
-                    {garment.difficulty_level && (
-                      <div className={`absolute top-4 left-4 px-2 py-1 rounded-full text-xs font-medium ${
-                        garment.difficulty_level === 'easy' ? 'bg-green-100 text-green-800' :
-                        garment.difficulty_level === 'medium' ? 'bg-yellow-100 text-yellow-800' :
-                        'bg-red-100 text-red-800'
-                      }`}>
-                        {garment.difficulty_level.toUpperCase()}
-                      </div>
-                    )}
                   </div>
                   <div className="p-6">
                     <div className="flex items-center justify-between mb-2">
@@ -157,26 +132,10 @@ export function Garments() {
                     </div>
                     <div className="flex items-center space-x-4 mb-3">
                       <span className="text-sm text-gray-600">{garment.category}</span>
-                      {garment.gender && (
-                        <>
-                          <span className="text-sm text-gray-600">•</span>
-                          <span className="text-sm text-gray-600">{garment.gender}</span>
-                        </>
-                      )}
-                      <span className="text-sm text-gray-600">•</span>
-                      <span className="text-sm text-gray-600">{garment.stitching_time_days} days</span>
                     </div>
                     {garment.description && (
                       <p className="text-gray-600 text-sm mb-4 line-clamp-2">{garment.description}</p>
                     )}
-                    <div className="mb-4">
-                      <p className="text-xs text-gray-500 mb-1">Fabric Required: {garment.fabric_requirement}m</p>
-                      {garment.customization_options && Object.keys(garment.customization_options).length > 0 && (
-                        <p className="text-xs text-gray-500">
-                          {Object.keys(garment.customization_options).length} customization options
-                        </p>
-                      )}
-                    </div>
                     <div className="flex space-x-2">
                       <Link to={`/garment/${garment.id}`} className="flex-1">
                         <Button variant="outline" className="w-full">
@@ -209,7 +168,6 @@ export function Garments() {
                 onClick={() => {
                   setSearchTerm('')
                   setSelectedCategory('all')
-                  setSelectedGender('all')
                 }}
               >
                 Clear Filters

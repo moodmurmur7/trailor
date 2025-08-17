@@ -1,16 +1,15 @@
-import React, { useState } from 'react'
+import React, { useState, useEffect } from 'react'
 import { motion } from 'framer-motion'
-import { Search, Filter, Eye, Edit, Phone, Mail, Calendar, Package, AlertCircle } from 'lucide-react'
+import { Search, Eye, Phone, Mail, Package, AlertCircle } from 'lucide-react'
 import { Button } from '../../components/ui/Button'
 import { Input } from '../../components/ui/Input'
 import { Card } from '../../components/ui/Card'
 import { Modal } from '../../components/ui/Modal'
-import { useRealTimeOrders } from '../../hooks/useRealTimeData'
-import { supabase, handleSupabaseError } from '../../lib/supabase'
-import { Order } from '../../types'
+import { useOrders } from '../../hooks/useRealTimeData'
+import { orderAPI, handleSupabaseError, Order } from '../../lib/supabase'
 
 export function AdminOrders() {
-  const { data: orders, loading, error, refetch } = useRealTimeOrders()
+  const { orders, loading, error, refetch } = useOrders()
   const [filteredOrders, setFilteredOrders] = useState<Order[]>([])
   const [searchTerm, setSearchTerm] = useState('')
   const [statusFilter, setStatusFilter] = useState('all')
@@ -29,7 +28,7 @@ export function AdminOrders() {
     'completed'
   ]
 
-  React.useEffect(() => {
+  useEffect(() => {
     let filtered = orders
 
     if (searchTerm) {
@@ -51,15 +50,7 @@ export function AdminOrders() {
     try {
       setUpdating(true)
       
-      const { error } = await supabase
-        .from('orders')
-        .update({ 
-          status: newStatus,
-          updated_at: new Date().toISOString()
-        })
-        .eq('id', orderId)
-
-      if (error) throw error
+      await orderAPI.updateStatus(orderId, newStatus)
 
       setSelectedOrder(null)
       setIsModalOpen(false)
