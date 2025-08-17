@@ -160,13 +160,16 @@ export function Customize() {
         throw new Error('Please select both fabric and garment')
       }
 
-      // Create order
+      // Create order with customer data directly
       const result = await orderAPI.create({
-        customer: orderData.customer,
+        customer_name: orderData.customer.name,
+        customer_phone: orderData.customer.phone,
+        customer_email: orderData.customer.email,
+        customer_address: orderData.customer.address,
         fabric_id: orderData.fabric.id,
         garment_id: orderData.garment.id,
-        customizations: orderData.customizations,
-        measurements: orderData.measurements,
+        customizations_json: orderData.customizations,
+        measurements_json: orderData.measurements,
         price: calculateTotalPrice(),
         urgent: false,
         special_instructions: orderData.customizations.special_instructions
